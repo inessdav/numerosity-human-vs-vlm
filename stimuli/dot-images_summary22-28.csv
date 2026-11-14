@@ -1,0 +1,8 @@
+﻿file,true_count,width_px,height_px,background,gap_px,size_mode,radius_setting_min_px,radius_setting_max_px,mean_radius_px,sd_radius_px,min_radius_px,max_radius_px,total_dot_area_px,coverage_pct,color_mode,n_colors_used,colors_used
+01.png,9,640,480,#ffffff,3,varied,5,25,14.42,5.1,5.02,21.38,6536,2.13,single,1,#d1495b:9
+02.png,23,640,480,#ffffff,3,varied,5,25,15.25,6.31,6.67,24.82,19565,6.37,single,1,#d1495b:23
+03.png,29,640,480,#ffffff,3,varied,5,25,17.54,4.07,11.23,24.04,29491,9.6,single,1,#d1495b:29
+04.png,47,640,480,#ffffff,3,varied,5,25,14.02,5.31,5.45,24.85,33078,10.77,single,1,#d1495b:47
+05.png,53,640,480,#ffffff,3,varied,5,25,15.04,6.13,5.17,24.78,43782,14.25,single,1,#d1495b:53
+06.png,67,640,480,#ffffff,3,varied,5,25,15.53,6.17,5.03,24.84,58685,19.1,single,1,#d1495b:67
+07.png,77,640,480,#ffffff,3,varied,5,25,14.67,5.72,5.06,24.99,59904,19.5,single,1,#d1495b:77

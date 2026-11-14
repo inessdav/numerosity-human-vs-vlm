@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Odhad počtu teček</title>
+<style>
+  :root {
+    --bg: #2a2e35;        /* neutral dark blue-grey to minimise distraction */
+    --panel: #343a43;
+    --ink: #e9e8e4;
+    --muted: #a7acb4;
+    --accent: #8fb8d9;
+    --err: #f0a090;
+    --ok: #9fd3b0;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font: 18px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex; align-items: center; justify-content: center; padding: 1rem;
+  }
+  .screen { width: 100%; max-width: 34rem; text-align: center; }
+  .panel { background: var(--panel); border-radius: 10px; padding: 2rem 1.75rem; }
+  h1 { font-size: 1.6rem; margin: 0 0 1rem; font-weight: 600; }
+  p { margin: 0 0 1rem; }
+  .muted { color: var(--muted); font-size: .9rem; }
+  label { display: block; margin-bottom: .5rem; }
+  input[type=number] {
+    width: 9rem; font: inherit; font-size: 1.6rem; text-align: center; color: var(--ink);
+    background: var(--bg); border: 2px solid #4b525d; border-radius: 8px; padding: .5rem;
+    -moz-appearance: textfield; appearance: textfield;
+  }
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  button {
+    font: inherit; font-weight: 600; color: #15212b; background: var(--accent);
+    border: 0; border-radius: 8px; padding: .65rem 1.5rem; margin-top: 1rem; cursor: pointer;
+  }
+  button.secondary { background: transparent; color: var(--accent); border: 2px solid var(--accent); }
+  button:disabled { opacity: .5; cursor: default; }
+  .error { color: var(--err); min-height: 1.5rem; margin: .5rem 0 0; font-size: .95rem; }
+  .progress { color: var(--muted); font-size: .95rem; margin-bottom: 1rem; }
+  /* The stimulus canvas is the only element on the stimulus screen */
+  #stage { display: block; margin: 0 auto; width: min(100%, 640px); height: auto; border-radius: 6px; }
+  .feedback { font-size: 1.3rem; }
+  #status { font-size: 1.1rem; }
+  #status.ok { color: var(--ok); }
+  #status.fail { color: var(--err); }
+  /* Results summary on the final screen */
+  #summary { margin-top: 1.75rem; padding-top: 1.5rem; border-top: 1px solid #4b525d; }
+  #summary h2 { font-size: 1.15rem; margin: 0 0 1rem; font-weight: 600; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .6rem; margin-bottom: 1rem; }
+  @media (max-width: 480px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  .stat { background: var(--bg); border-radius: 8px; padding: .7rem .4rem; }
+  .stat .v { display: block; font-size: 1.45rem; font-weight: 600; line-height: 1.2; }
+  .stat .l { display: block; font-size: .8rem; color: var(--muted); margin-top: .15rem; }
+  .stat .s { display: block; font-size: .75rem; color: var(--muted); }
+  #chart { display: block; width: 100%; margin: .75rem auto 0; }
+</style>
+</head>
+<body>
+
+<!-- 1) Demographics -->
+<section class="screen panel" id="s-intro">
+  <h1>Odhad počtu teček</h1>
+  <form id="intro-form" novalidate>
+    <label for="age">Váš věk (v letech)</label>
+    <input type="number" id="age" min="1" max="120" step="1" inputmode="numeric" autocomplete="off">
+    <p class="error" id="age-error" role="alert"></p>
+    <p class="muted">ID účastníka: <span id="subject-id-label"></span></p>
+    <button type="submit">Pokračovat na instrukce</button>
+  </form>
+</section>
+
+<!-- 2) Instructions -->
+<section class="screen panel" id="s-instructions" hidden>
+  <h1>Instrukce</h1>
+  <p>Uvidíte obrázek s tečkami na velmi krátkou dobu. Po jeho zmizení napište svůj odhad.</p>
+  <p>Před každým obrázkem se na okamžik objeví křížek uprostřed obrazovky. Odhad potvrďte klávesou Enter nebo tlačítkem Odeslat.</p>
+  <p class="muted">Nejdřív vás čekají dvě zkušební kola se zpětnou vazbou. Do výsledků se nezapočítají.</p>
+  <button id="btn-practice" type="button">Spustit zkušební kola</button>
+</section>
+
+<!-- Stimulus: nothing but the canvas is on screen -->
+<section class="screen" id="s-stage" hidden>
+  <canvas id="stage" width="640" height="480" aria-label="Pole pro zobrazení stimulu"></canvas>
+</section>
+
+<!-- Response -->
+<section class="screen panel" id="s-answer" hidden>
+  <p class="progress" id="progress"></p>
+  <form id="answer-form" novalidate>
+    <label for="estimate">Kolik teček jste viděli?</label>
+    <input type="number" id="estimate" min="1" max="999" step="1" inputmode="numeric" autocomplete="off">
+    <p class="error" id="answer-error" role="alert"></p>
+    <button type="submit">Odeslat</button>
+  </form>
+</section>
+
+<!-- Feedback (practice trials only) -->
+<section class="screen panel" id="s-feedback" hidden>
+  <p class="feedback" id="feedback-text"></p>
+  <button id="btn-feedback-next" type="button">Pokračovat</button>
+</section>
+
+<!-- Transition to the recorded trials -->
+<section class="screen panel" id="s-ready" hidden>
+  <h1>Zkouška hotová</h1>
+  <p>Teď začne ostrý test. Zpětnou vazbu už neuvidíte a odpovědi se uloží.</p>
+  <button id="btn-start" type="button">Spustit test</button>
+</section>
+
+<!-- 3) Completion and data submission -->
+<section class="screen panel" id="s-end" hidden>
+  <h1>Děkujeme za účast</h1>
+  <p id="status" aria-live="polite">Ukládám výsledky…</p>
+  <p class="error" id="send-error"></p>
+  <button id="btn-retry" type="button" hidden>Zkusit odeslat znovu</button>
+  <button id="btn-csv" class="secondary" type="button" hidden>Stáhnout výsledky jako CSV</button>
+
+  <div id="summary" hidden>
+    <h2>Jak jste si vedli</h2>
+    <div class="stats" id="stats"></div>
+    <p id="tendency"></p>
+    <canvas id="chart" role="img" aria-label="Graf odhadů: skutečný počet teček a váš odhad v jednotlivých pokusech"></canvas>
+    <p class="muted">Každá tečka je jeden pokus. Čím blíž je k čárkované čáře, tím přesnější byl váš odhad. Nad čarou jste počet nadhodnotili, pod ní podhodnotili.</p>
+  </div>
+</section>
+
+<script>
+/* =====================================================================
+   CONFIGURATION
+   ===================================================================== */
+const CONFIG = {
+  STIMULUS_DURATION_MS: 500,   // stimulus duration
+  FIXATION_DURATION_MS: 500,   // fixation cross duration
+  GAS_URL: 'VLOZTE_URL_WEB_APP', // URL of the deployed Apps Script web app (see setup notes below)
+  FORCE_CANVAS: false,         // true = always draw generated dots (development without images)
+  SHUFFLE: true,               // randomise the order of the recorded trials
+  MIN_AGE: 1, MAX_AGE: 120,
+  MAX_ESTIMATE: 999
+};
+
+/* Recorded trials: the same 16 images are shown to every participant. If the file src is
+   missing or fails to load, a canvas with true_count generated dots is drawn instead, so the
+   test also runs without the images/ folder (the mode is logged in render_mode). */
+const STIMULI = [
+  { id: 'img_01', src: 'images/01.png', true_count: 8  },
+  { id: 'img_03', src: 'images/03.png', true_count: 32 },
+  { id: 'img_05', src: 'images/05.png', true_count: 56 },
+  { id: 'img_07', src: 'images/07.png', true_count: 80 },
+  { id: 'img_08', src: 'images/08.png', true_count: 10 },
+  { id: 'img_10', src: 'images/10.png', true_count: 32 },
+  { id: 'img_12', src: 'images/12.png', true_count: 58 },
+  { id: 'img_14', src: 'images/14.png', true_count: 80 },
+  { id: 'img_15', src: 'images/15.png', true_count: 9  },
+  { id: 'img_17', src: 'images/17.png', true_count: 32 },
+  { id: 'img_19', src: 'images/19.png', true_count: 56 },
+  { id: 'img_21', src: 'images/21.png', true_count: 78 },
+  { id: 'img_22', src: 'images/22.png', true_count: 9  },
+  { id: 'img_24', src: 'images/24.png', true_count: 29 },
+  { id: 'img_26', src: 'images/26.png', true_count: 53 },
+  { id: 'img_28', src: 'images/28.png', true_count: 77 }
+];
+
+/* Practice trials (always canvas-rendered, data are not stored) */
+const PRACTICE_STIMULI = [
+  { id: 'practice_1', src: null, true_count: 12 },
+  { id: 'practice_2', src: null, true_count: 35 }
+];
+
+/* =====================================================================
+   GOOGLE APPS SCRIPT – setup and code
+   1) Open the Google Sheet → Extensions → Apps Script.
+   2) Paste the whole code below (replace the existing content) and save.
+   3) Deploy → New deployment → type Web app:
+        Execute as: Me
+        Who has access: Anyone
+   4) Copy the web app URL (ending in /exec) into CONFIG.GAS_URL.
+   5) After every change to the script create a NEW deployment (or a new version).
+
+   The browser sends a POST with Content-Type text/plain, which avoids the CORS
+   preflight (OPTIONS) request that Apps Script cannot handle. The response is JSON.
+
+   ---------------------- Code.gs ----------------------
+   const SHEET_NAME = 'Data';
+   const COLUMNS = ['subject_id','age','timestamp','trial_number','stimulus_id',
+     'true_count','user_estimate','absolute_error','signed_error',
+     'reaction_time_ms','stimulus_duration_ms','render_mode'];
+
+   function doPost(e) {
+     const lock = LockService.getScriptLock();
+     try {
+       lock.waitLock(20000);
+       const payload = JSON.parse(e.postData.contents);
+       const trials = payload.trials;
+       if (!Array.isArray(trials) || trials.length === 0) throw new Error('Prázdná data');
+
+       const ss = SpreadsheetApp.getActiveSpreadsheet();
+       const sheet = ss.getSheetByName(SHEET_NAME) || ss.insertSheet(SHEET_NAME);
+       if (sheet.getLastRow() === 0) sheet.appendRow(COLUMNS);
+
+       // Guard against duplicates on resubmission (same subject_id)
+       const id = String(trials[0].subject_id);
+       const last = sheet.getLastRow();
+       const dup = last > 1 && sheet.getRange(2, 1, last - 1, 1)
+         .createTextFinder(id).matchEntireCell(true).findNext();
+
+       if (!dup) {
+         const rows = trials.map(t => COLUMNS.map(c => (t[c] === undefined ? '' : t[c])));
+         sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, COLUMNS.length).setValues(rows);
+       }
+       return reply({ ok: true, duplicate: !!dup });
+     } catch (err) {
+       return reply({ ok: false, error: String(err) });
+     } finally {
+       lock.releaseLock();
+     }
+   }
+
+   function reply(obj) {
+     return ContentService.createTextOutput(JSON.stringify(obj))
+       .setMimeType(ContentService.MimeType.JSON);
+   }
+   ------------------------------------------------------------
+   ===================================================================== */
+
+/* =====================================================================
+   STATE AND HELPERS
+   ===================================================================== */
+const $ = id => document.getElementById(id);
+const SCREENS = ['intro', 'instructions', 'stage', 'answer', 'feedback', 'ready', 'end'];
+const state = { subjectId: makeSubjectId(), age: null, trials: [] };
+const stageCanvas = $('stage');
+const stageCtx = stageCanvas.getContext('2d');
+const W = stageCanvas.width, H = stageCanvas.height;
+const BG = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+
+function makeSubjectId() {
+  const rnd = Math.random().toString(36).slice(2, 8);
+  return 'S' + Date.now().toString(36) + '-' + rnd;
+}
+function show(name) { SCREENS.forEach(s => { $('s-' + s).hidden = (s !== name); }); }
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+/* Allow digits only: blocks -, +, ., , and e in number inputs */
+function digitsOnly(input) {
+  input.addEventListener('keydown', e => {
+    if (['-', '+', '.', ',', 'e', 'E'].includes(e.key)) e.preventDefault();
+  });
+  input.addEventListener('input', () => {
+    const clean = input.value.replace(/\D/g, '');
+    if (clean !== input.value) input.value = clean;
+  });
+}
+function parseIntStrict(str) { return /^\d+$/.test(str.trim()) ? parseInt(str, 10) : NaN; }
+
+/* =====================================================================
+   STIMULUS RENDERING
+   ===================================================================== */
+/* Seeded pseudo-random numbers (same ID = same dot layout) */
+function hashStr(s) { let h = 2166136261; for (const c of s) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+/* Fallback stimulus: n dots with random position, size and colour on a white background */
+function drawDotsStimulus(ctx, n, seedStr) {
+  const rand = mulberry32(hashStr(seedStr));
+  const colors = ['#d1495b', '#2e86ab', '#edae49', '#3c8d5a', '#6a4c93', '#222222', '#f08a4b'];
+  const rMin = 5, rMax = n > 50 ? 9 : 14, pad = 6, gap = 3;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, W, H);
+  const dots = [];
+  for (let i = 0; i < n; i++) {
+    let d = null;
+    for (let attempt = 0; attempt < 300; attempt++) {
+      const r = rMin + rand() * (rMax - rMin);
+      const c = {
+        x: pad + r + rand() * (W - 2 * (pad + r)),
+        y: pad + r + rand() * (H - 2 * (pad + r)), r
+      };
+      d = c;
+      if (dots.every(o => Math.hypot(o.x - c.x, o.y - c.y) >= o.r + c.r + gap)) break; // no overlap
+    }
+    d.color = colors[Math.floor(rand() * colors.length)];
+    dots.push(d);
+    ctx.beginPath();
+    ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+    ctx.fillStyle = d.color;
+    ctx.fill();
+  }
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Cannot load ' + src));
+    img.src = src;
+  });
+}
+
+/* Prepares the stimulus in an off-screen buffer so that it is drawn with a single drawImage call */
+async function prepareStimulus(stim) {
+  const buf = document.createElement('canvas');
+  buf.width = W; buf.height = H;
+  const ctx = buf.getContext('2d');
+  let mode = 'canvas';
+  if (stim.src && !CONFIG.FORCE_CANVAS) {
+    try {
+      const img = await loadImage(stim.src);
+      const scale = Math.min(W / img.width, H / img.height);
+      const w = img.width * scale, h = img.height * scale;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, W, H);
+      ctx.drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
+      mode = 'image';
+    } catch (err) {
+      console.warn(err.message + ' - fallback canvas used.');
+    }
+  }
+  if (mode === 'canvas') drawDotsStimulus(ctx, stim.true_count, stim.id);
+  return { buf, mode };
+}
+
+function clearStage() { stageCtx.fillStyle = BG; stageCtx.fillRect(0, 0, W, H); }
+function drawFixation() {
+  clearStage();
+  stageCtx.strokeStyle = '#e9e8e4'; stageCtx.lineWidth = 3;
+  stageCtx.beginPath();
+  stageCtx.moveTo(W / 2 - 18, H / 2); stageCtx.lineTo(W / 2 + 18, H / 2);
+  stageCtx.moveTo(W / 2, H / 2 - 18); stageCtx.lineTo(W / 2, H / 2 + 18);
+  stageCtx.stroke();
+}
+
+/* Shows the stimulus in sync with a repaint and hides it after STIMULUS_DURATION_MS.
+   Subtracting 8 ms (about half a frame at 60 Hz) keeps the stimulus from staying one frame too long. */
+function presentStimulus(buf) {
+  return new Promise(resolve => {
+    requestAnimationFrame(() => {
+      stageCtx.drawImage(buf, 0, 0);
+      const t0 = performance.now();
+      (function tick() {
+        if (performance.now() - t0 >= CONFIG.STIMULUS_DURATION_MS - 8) { clearStage(); resolve(); }
+        else requestAnimationFrame(tick);
+      })();
+    });
+  });
+}
+
+/* =====================================================================
+   SINGLE TRIAL
+   ===================================================================== */
+async function runTrial(stim, progressLabel) {
+  show('stage');
+  drawFixation();
+  const [prepared] = await Promise.all([prepareStimulus(stim), sleep(CONFIG.FIXATION_DURATION_MS)]);
+  await presentStimulus(prepared.buf);
+
+  // Stimulus is gone: show the response field; response time is measured from this moment
+  $('progress').textContent = progressLabel;
+  const input = $('estimate');
+  input.value = '';
+  $('answer-error').textContent = '';
+  show('answer');
+  input.focus();
+  let t0 = performance.now();
+  requestAnimationFrame(() => { t0 = performance.now(); }); // time of the first painted frame that contains the field
+
+  return new Promise(resolve => {
+    const form = $('answer-form');
+    form.onsubmit = e => {
+      e.preventDefault();
+      const rt = performance.now() - t0;
+      const value = parseIntStrict(input.value);
+      if (!Number.isInteger(value) || value < 1 || value > CONFIG.MAX_ESTIMATE) {
+        $('answer-error').textContent = 'Zadejte celé číslo od 1 do ' + CONFIG.MAX_ESTIMATE + '.';
+        input.focus();
+        return;
+      }
+      form.onsubmit = null;
+      resolve({ estimate: value, rt, timestamp: new Date().toISOString(), mode: prepared.mode });
+    };
+  });
+}
+
+function buildRecord(stim, res, trialNumber) {
+  return {
+    subject_id: state.subjectId,
+    age: state.age,
+    timestamp: res.timestamp,
+    trial_number: trialNumber,
+    stimulus_id: stim.id,
+    true_count: stim.true_count,
+    user_estimate: res.estimate,
+    absolute_error: Math.abs(res.estimate - stim.true_count),
+    signed_error: res.estimate - stim.true_count,   // positive = overestimate, negative = underestimate
+    reaction_time_ms: Math.round(res.rt),
+    stimulus_duration_ms: CONFIG.STIMULUS_DURATION_MS,
+    render_mode: res.mode                            // image | canvas
+  };
+}
+
+/* =====================================================================
+   EXPERIMENT FLOW
+   ===================================================================== */
+async function runPractice() {
+  for (let i = 0; i < PRACTICE_STIMULI.length; i++) {
+    const stim = PRACTICE_STIMULI[i];
+    const res = await runTrial(stim, 'Zkušební kolo ' + (i + 1) + ' z ' + PRACTICE_STIMULI.length);
+    $('feedback-text').textContent = 'Správně bylo ' + stim.true_count + ', váš odhad byl ' + res.estimate + '.';
+    show('feedback');
+    $('btn-feedback-next').focus();
+    await new Promise(r => { $('btn-feedback-next').onclick = r; });
+    // Practice-trial data are intentionally not stored
+  }
+  show('ready');
+  $('btn-start').focus();
+}
+
+async function runMain() {
+  const order = CONFIG.SHUFFLE ? shuffle([...STIMULI]) : [...STIMULI];
+  for (let i = 0; i < order.length; i++) {
+    const res = await runTrial(order[i], 'Test ' + (i + 1) + ' z ' + order.length);
+    state.trials.push(buildRecord(order[i], res, i + 1));
+  }
+  show('end');
+  renderSummary();   // show the summary immediately; data submission runs concurrently
+  submitResults();
+}
+
+/* =====================================================================
+   DATA SUBMISSION
+   ===================================================================== */
+async function sendDataToGoogleSheets(data) {
+  if (!CONFIG.GAS_URL || CONFIG.GAS_URL.startsWith('VLOZTE')) {
+    throw new Error('Není nastavena adresa Google Apps Scriptu (CONFIG.GAS_URL).');
+  }
+  const response = await fetch(CONFIG.GAS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // "simple" request, no preflight
+    body: JSON.stringify({ trials: data })
+  });
+  const json = await response.json();
+  if (!json.ok) throw new Error(json.error || 'Server vrátil chybu.');
+  return json;
+}
+
+async function submitResults() {
+  const status = $('status');
+  status.className = ''; status.textContent = 'Ukládám výsledky…';
+  $('send-error').textContent = '';
+  $('btn-retry').hidden = true; $('btn-csv').hidden = true;
+  try {
+    await sendDataToGoogleSheets(state.trials);
+    status.className = 'ok'; status.textContent = 'Data byla úspěšně uložena!';
+  } catch (err) {
+    status.className = 'fail'; status.textContent = 'Výsledky se nepodařilo uložit.';
+    $('send-error').textContent = err.message;
+    $('btn-retry').hidden = false; $('btn-csv').hidden = false;
+  }
+}
+
+/* Backup: download the results as CSV in case the submission fails */
+function downloadCsv() {
+  const cols = Object.keys(state.trials[0]);
+  const lines = [cols.join(',')].concat(state.trials.map(t => cols.map(c => JSON.stringify(t[c] ?? '')).join(',')));
+  const blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'dot-estimation_' + state.subjectId + '.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* =====================================================================
+   RESULTS SUMMARY (statistics + chart)
+   ===================================================================== */
+const fmt = (v, d = 1) => v.toLocaleString('cs-CZ', { maximumFractionDigits: d });
+
+function renderSummary() {
+  const t = state.trials;
+  if (!t.length) return;
+  const mean = arr => arr.reduce((a, b) => a + b, 0) / arr.length;
+  const mae = mean(t.map(x => x.absolute_error));
+  const bias = mean(t.map(x => x.signed_error));
+  const worst = t.reduce((a, b) => (b.absolute_error > a.absolute_error ? b : a));
+  const best = t.reduce((a, b) => (b.absolute_error < a.absolute_error ? b : a));
+  const rt = mean(t.map(x => x.reaction_time_ms)) / 1000;
+  const exact = t.filter(x => x.absolute_error === 0).length;
+
+  const tiles = [
+    [fmt(mae), 'Průměrná odchylka', 'v počtu teček'],
+    [(bias > 0 ? '+' : '') + fmt(bias), 'Průměrný směr chyby', 'kladné = nadhodnocení'],
+    [fmt(worst.absolute_error, 0), 'Největší chyba', 'při ' + worst.true_count + ' tečkách'],
+    [fmt(best.absolute_error, 0), 'Nejmenší chyba', 'při ' + best.true_count + ' tečkách'],
+    [fmt(rt) + ' s', 'Průměrný čas odpovědi', ''],
+    [exact + ' z ' + t.length, 'Přesné odhady', '']
+  ];
+  $('stats').innerHTML = tiles.map(([v, l, s]) =>
+    '<div class="stat"><span class="v">' + v + '</span><span class="l">' + l + '</span>' +
+    (s ? '<span class="s">' + s + '</span>' : '') + '</div>').join('');
+
+  $('tendency').textContent = Math.abs(bias) < 0.5
+    ? 'V průměru jste odhadovali téměř přesně.'
+    : bias > 0 ? 'V průměru jste počet spíše nadhodnocovali.' : 'V průměru jste počet spíše podhodnocovali.';
+  $('summary').hidden = false;
+  drawChart();
+}
+
+/* Scatter plot: true count (x) vs. estimate (y); dashed line = perfect estimate */
+function drawChart() {
+  const t = state.trials, cv = $('chart');
+  if (!t.length) return;
+  const css = getComputedStyle(document.documentElement);
+  const muted = css.getPropertyValue('--muted').trim(), accent = css.getPropertyValue('--accent').trim();
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = cv.clientWidth || 480;
+  const m = { l: 46, r: 14, t: 12, b: 46 };
+  const pw = cssW - m.l - m.r;               // square plot area so that the diagonal is at 45°
+  const cssH = pw + m.t + m.b;
+  cv.width = Math.round(cssW * dpr); cv.height = Math.round(cssH * dpr); cv.style.height = cssH + 'px';
+  const ctx = cv.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const maxV = Math.max(...t.map(x => Math.max(x.true_count, x.user_estimate)));
+  const step = [5, 10, 20, 25, 50, 100, 200, 500].find(s => maxV / s <= 5) || 500;
+  const top = Math.ceil(maxV / step) * step;
+  const X = v => m.l + v / top * pw, Y = v => m.t + pw - v / top * pw;
+
+  ctx.font = '12px system-ui, sans-serif';
+  ctx.fillStyle = muted; ctx.strokeStyle = '#4b525d'; ctx.lineWidth = 1;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (let v = 0; v <= top; v += step) {
+    ctx.beginPath(); ctx.moveTo(X(v), m.t); ctx.lineTo(X(v), m.t + pw); ctx.stroke();   // vertical grid
+    ctx.fillText(v, X(v), m.t + pw + 6);
+  }
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (let v = 0; v <= top; v += step) {
+    ctx.beginPath(); ctx.moveTo(m.l, Y(v)); ctx.lineTo(m.l + pw, Y(v)); ctx.stroke();   // horizontal grid
+    ctx.fillText(v, m.l - 8, Y(v));
+  }
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.fillText('Skutečný počet teček', m.l + pw / 2, cssH - 4);
+  ctx.save(); ctx.translate(12, m.t + pw / 2); ctx.rotate(-Math.PI / 2);
+  ctx.textBaseline = 'top'; ctx.fillText('Váš odhad', 0, 0); ctx.restore();
+
+  ctx.setLineDash([6, 5]); ctx.strokeStyle = '#e9e8e4'; ctx.lineWidth = 1.5; ctx.globalAlpha = .7;
+  ctx.beginPath(); ctx.moveTo(X(0), Y(0)); ctx.lineTo(X(top), Y(top)); ctx.stroke();
+  ctx.setLineDash([]); ctx.globalAlpha = 1;
+
+  ctx.fillStyle = accent; ctx.strokeStyle = css.getPropertyValue('--panel').trim(); ctx.lineWidth = 1.5;
+  t.forEach(x => {
+    ctx.beginPath(); ctx.arc(X(x.true_count), Y(x.user_estimate), 5, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+  });
+}
+window.addEventListener('resize', () => { if (!$('s-end').hidden) drawChart(); });
+
+/* =====================================================================
+   EVENT HANDLERS
+   ===================================================================== */
+digitsOnly($('age'));
+digitsOnly($('estimate'));
+$('subject-id-label').textContent = state.subjectId;
+
+$('intro-form').addEventListener('submit', e => {
+  e.preventDefault();
+  const age = parseIntStrict($('age').value);
+  if (!Number.isInteger(age) || age < CONFIG.MIN_AGE || age > CONFIG.MAX_AGE) {
+    $('age-error').textContent = 'Zadejte věk jako celé číslo od ' + CONFIG.MIN_AGE + ' do ' + CONFIG.MAX_AGE + '.';
+    $('age').focus();
+    return;
+  }
+  state.age = age;
+  show('instructions');
+  $('btn-practice').focus();
+});
+$('btn-practice').addEventListener('click', runPractice);
+$('btn-start').addEventListener('click', runMain);
+$('btn-retry').addEventListener('click', submitResults);
+$('btn-csv').addEventListener('click', downloadCsv);
+
+show('intro');
+$('age').focus();
+</script>
+</body>
+</html>

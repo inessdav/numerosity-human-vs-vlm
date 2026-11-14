@@ -1,0 +1,8 @@
+﻿file,true_count,width_px,height_px,background,gap_px,size_mode,radius_setting_min_px,radius_setting_max_px,mean_radius_px,sd_radius_px,min_radius_px,max_radius_px,total_dot_area_px,coverage_pct,color_mode,n_colors_used,colors_used
+01.png,10,640,480,#ffffff,3,same,10,10,10,0,10,10,3142,1.02,multi,6,#2e86ab:1 #3c8d5a:2 #d1495b:3 #6a4c93:2 #222222:1 #f08a4b:1
+02.png,18,640,480,#ffffff,3,same,10,10,10,0,10,10,5655,1.84,multi,6,#2e86ab:2 #6a4c93:4 #edae49:7 #f08a4b:2 #d1495b:2 #222222:1
+03.png,32,640,480,#ffffff,3,same,10,10,10,0,10,10,10053,3.27,multi,7,#222222:8 #3c8d5a:6 #edae49:4 #d1495b:3 #6a4c93:2 #2e86ab:4 #f08a4b:5
+04.png,45,640,480,#ffffff,3,same,10,10,10,0,10,10,14137,4.6,multi,7,#6a4c93:7 #f08a4b:5 #222222:12 #3c8d5a:5 #2e86ab:6 #edae49:6 #d1495b:4
+05.png,58,640,480,#ffffff,3,same,10,10,10,0,10,10,18221,5.93,multi,7,#edae49:4 #222222:9 #6a4c93:10 #d1495b:11 #3c8d5a:7 #2e86ab:9 #f08a4b:8
+06.png,70,640,480,#ffffff,3,same,10,10,10,0,10,10,21991,7.16,multi,7,#f08a4b:11 #d1495b:16 #222222:7 #edae49:10 #2e86ab:9 #6a4c93:10 #3c8d5a:7
+07.png,80,640,480,#ffffff,3,same,10,10,10,0,10,10,25133,8.18,multi,7,#f08a4b:15 #edae49:10 #2e86ab:12 #6a4c93:9 #d1495b:13 #222222:13 #3c8d5a:8
