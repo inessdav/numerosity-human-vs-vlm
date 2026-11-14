@@ -5,6 +5,8 @@ This project compares how humans and AI models estimate the number of dots in a
 briefly presented display, and tests whether dot colour and dot size influence the
 estimate in the same way.
 
+The test can be completed [here](https://inessdav.github.io/numerosity-human-vs-vlm/).
+
 ## Research question and hypotheses
 
 Human estimates of large numerosities are generally attributed to the approximate
