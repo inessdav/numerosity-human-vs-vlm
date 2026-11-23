@@ -58,7 +58,8 @@ def make_caller(args):
 
     if args.provider == "anthropic":
         import anthropic
-        client = anthropic.Anthropic(api_key=os.environ[args.api_key_env or "ANTHROPIC_API_KEY"])
+        client = anthropic.Anthropic(api_key=os.environ[args.api_key_env or "ANTHROPIC_API_KEY"],
+                                     timeout=args.timeout, max_retries=0)
 
         def call(stim, image_b64):
             resp = client.messages.create(
@@ -77,7 +78,7 @@ def make_caller(args):
     if args.provider == "openai":
         from openai import OpenAI
         client = OpenAI(api_key=os.environ[args.api_key_env or "OPENAI_API_KEY"],
-                        base_url=args.base_url)
+                        base_url=args.base_url, timeout=args.timeout, max_retries=0)
 
         def call(stim, image_b64):
             kwargs = {args.token_param: args.max_tokens}
@@ -97,13 +98,15 @@ def make_caller(args):
     sys.exit(f"Unknown provider: {args.provider}")
 
 
-def call_with_retry(call, stim, image_b64, tries=5):
+def call_with_retry(call, stim, image_b64, tries=8):
+    """Retry transient failures (overload 503, rate limit 429, timeouts) with capped backoff."""
     for attempt in range(tries):
         try:
             return call(stim, image_b64)
-        except Exception as err:                      # network / rate limit
-            wait = 2 ** attempt
-            print(f"  API error ({err.__class__.__name__}: {err}); retry in {wait}s", file=sys.stderr)
+        except Exception as err:                      # network / overload / rate limit
+            wait = min(2 ** attempt * 2, 60)
+            print(f"  API error ({err.__class__.__name__}: {err}); retry {attempt + 1}/{tries} in {wait}s",
+                  file=sys.stderr, flush=True)
             time.sleep(wait)
     raise RuntimeError("API call failed repeatedly")
 
@@ -126,6 +129,8 @@ def main():
     ap.add_argument("--max-tokens", type=int, default=32)
     ap.add_argument("--token-param", default="max_tokens",
                     help="OpenAI-compatible only; use max_completion_tokens for newer OpenAI models")
+    ap.add_argument("--timeout", type=float, default=60.0,
+                    help="seconds to wait for one API response before retrying (default 60)")
     ap.add_argument("--base-url", default=None)
     ap.add_argument("--api-key-env", default=None)
     ap.add_argument("--out", required=True)
@@ -175,12 +180,14 @@ def main():
             }
             writer.writerow(row)
             f.flush()
+            print(f"  run {run + 1}/{args.runs}  trial {trial}/{len(session)}  {stim['stimulus_id']}  "
+                  f"true={stim['true_count']}  answer={raw.strip()[:40]!r}", flush=True)
         print(f"run {run + 1}/{args.runs} done", flush=True)
     f.close()
 
     meta = {
         "model_id": args.model, "provider": args.provider, "base_url": args.base_url,
-        "temperature": args.temperature, "max_tokens": args.max_tokens,
+        "temperature": args.temperature, "max_tokens": args.max_tokens, "timeout_s": args.timeout,
         "prompt": PROMPT, "runs": args.runs, "seed_base": args.seed_base,
         "trials_per_run": 16, "design": "fixed balanced set of 16 images, random order per run",
         "started_utc": started, "finished_utc": datetime.now(timezone.utc).isoformat(),
