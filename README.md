@@ -22,11 +22,38 @@ There are 16 images: colour (same / different) × dot size (same / different) ×
 - **AI** gets each image in a separate request with the question "How many dots do you see?" and answers with one number. One run of 16 images counts as one virtual participant.
 - **Simple models** are two computer simulations that guess without looking at the image: one follows Weber's law (the bigger the number, the bigger the error), the other guesses from the total area of the dots.
 
+## Results
+
+50 people (800 answers), 20 runs of Gemini (320 answers) and 5 runs of Gemini with reasoning (80 answers) saw the same 16 images.
+
+**In short:** the more dots there are, the more people underestimate them. Gemini misses a nearly constant share and gives almost the same answer every time. Colour and dot size barely move Gemini, while people react slightly to both. Neither follows the total ink area, so both respond to the number of dots, not to how full the picture looks.
+
+![Humans, Gemini and the two simple models](figures/comparison.png)
+
+| | Humans | Gemini | Gemini + reasoning |
+|---|---:|---:|---:|
+| Participants or runs | 50 | 20 | 5 |
+| Mean answer, % of true number | 79 | 84 | 93 |
+| Bias at about 9 dots | −4 % | −11 % | −4 % |
+| Bias at about 78 dots | −40 % | −17 % | −15 % |
+| Spread of answers (CV) | 0.30 | 0.03 | 0.06 |
+| Colour effect | +6.6 % | +0.6 % | +1.1 % |
+| Dot size effect | −8.8 % | −1.3 % | +2.6 % |
+
+Colour and size effects are the change of the estimate for varied vs. uniform images. With only 5 runs, the effects of Gemini with reasoning cannot be told apart from zero.
+
+- **H1** holds for accuracy: different colours did not change it, and people were not slower.
+- **H2** is not supported: larger dots did not raise the estimates. In people they lowered them slightly.
+- **Reasoning** removes most of Gemini's underestimation up to about 55 dots, but not at about 78 dots.
+
+![Gemini with and without reasoning](figures/reasoning.png)
+
 ## What's in this repository
 
 ```
 docs/      the experiment (runs in a browser) and the 16 images
 stimuli/   exact position and size of every dot
+figures/   summary figures
 ai/        scripts that ask the AI and run the simple models
 data/      collected answers (humans, AI, simple models)
 analysis/  analysis plan
@@ -50,7 +77,3 @@ python baselines.py --runs 20 --out ../data/results_baselines.csv
 ```
 
 Next to every AI result file, a `.meta.json` file stores the model, settings and date.
-
-## Status
-
-Data collection: 50 human participants (800 answers), 20 AI runs and 5 AI runs with reasoning.
