@@ -41,6 +41,11 @@ export GEMINI_API_KEY=...
 python run_models.py --provider openai --model gemini-3.1-flash-lite \
   --base-url https://generativelanguage.googleapis.com/v1beta/openai/ \
   --api-key-env GEMINI_API_KEY --runs 20 --out ../data/results_gemini.csv
+# same model with reasoning switched on (thinking tokens count towards --max-tokens)
+python run_models.py --provider openai --model gemini-3.1-flash-lite \
+  --base-url https://generativelanguage.googleapis.com/v1beta/openai/ \
+  --api-key-env GEMINI_API_KEY --runs 5 --reasoning-effort high --max-tokens 4096 \
+  --out ../data/results_gemini_reasoning.csv
 python baselines.py --runs 20 --out ../data/results_baselines.csv
 ```
 
@@ -48,4 +53,4 @@ Next to every AI result file, a `.meta.json` file stores the model, settings and
 
 ## Status
 
-Data collection: more than 50 human participants and 20 AI runs.
+Data collection: 50 human participants (800 answers), 20 AI runs and 5 AI runs with reasoning.
