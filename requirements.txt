@@ -2,3 +2,6 @@ anthropic
 openai
 pandas
 numpy
+scipy
+statsmodels
+matplotlib

@@ -56,7 +56,7 @@ stimuli/   exact position and size of every dot
 figures/   summary figures
 ai/        scripts that ask the AI and run the simple models
 data/      collected answers (humans, AI, simple models)
-analysis/  analysis plan
+analysis/  analysis plan, statistics and figure scripts, results
 ```
 
 ## Run it yourself
@@ -75,5 +75,16 @@ python run_models.py --provider openai --model gemini-3.1-flash-lite \
   --out ../data/results_gemini_reasoning.csv
 python baselines.py --runs 20 --out ../data/results_baselines.csv
 ```
+
+## Reproduce the analysis
+
+```bash
+python ai/baselines.py --runs 2000 --seed-base 5000 --out data/results_baselines_2000.csv
+python analysis/stats.py        # tables and numbers  -> analysis/results/
+python analysis/figures.py      # main figures        -> figures/
+python analysis/mechanisms.py   # why the answers differ -> figures/, analysis/results/
+```
+
+The first command simulates the two simple observers 2000 times each (about a second). `stats.py` works with the log of estimate / true number (paired t-tests per participant or run, plus mixed models), so effects are reported as percentage changes with 95 % confidence intervals.
 
 Next to every AI result file, a `.meta.json` file stores the model, settings and date.
