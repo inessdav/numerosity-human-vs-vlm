@@ -82,6 +82,8 @@ def make_caller(args):
 
         def call(stim, image_b64):
             kwargs = {args.token_param: args.max_tokens}
+            if args.reasoning_effort:                     # Gemini thinking level (low / medium / high)
+                kwargs["reasoning_effort"] = args.reasoning_effort
             resp = client.chat.completions.create(
                 model=args.model,
                 temperature=args.temperature,
@@ -129,6 +131,9 @@ def main():
     ap.add_argument("--max-tokens", type=int, default=32)
     ap.add_argument("--token-param", default="max_tokens",
                     help="OpenAI-compatible only; use max_completion_tokens for newer OpenAI models")
+    ap.add_argument("--reasoning-effort", default=None, choices=["low", "medium", "high"],
+                    help="OpenAI-compatible only; turns on model reasoning at this level "
+                         "(raise --max-tokens, thinking tokens count towards it)")
     ap.add_argument("--timeout", type=float, default=60.0,
                     help="seconds to wait for one API response before retrying (default 60)")
     ap.add_argument("--base-url", default=None)
@@ -153,6 +158,8 @@ def main():
         writer.writeheader()
 
     safe = re.sub(r"[^A-Za-z0-9]+", "-", args.model)
+    if args.reasoning_effort:
+        safe += f"-{args.reasoning_effort}"
     for run in range(args.runs):
         seed = args.seed_base + run
         subject = f"{safe}-run{run + 1:02d}"
@@ -188,6 +195,7 @@ def main():
     meta = {
         "model_id": args.model, "provider": args.provider, "base_url": args.base_url,
         "temperature": args.temperature, "max_tokens": args.max_tokens, "timeout_s": args.timeout,
+        "reasoning_effort": args.reasoning_effort,
         "prompt": PROMPT, "runs": args.runs, "seed_base": args.seed_base,
         "trials_per_run": 16, "design": "fixed balanced set of 16 images, random order per run",
         "started_utc": started, "finished_utc": datetime.now(timezone.utc).isoformat(),
